@@ -1,0 +1,37 @@
+[project]
+name = "pyundoc"
+version = "0.0.1"
+authors = [
+    { name = "Skip Montanaro", email = "skip.montanaro@gmail.com" },
+]
+description = "Python undocumented sniffer"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "requests>=2.31.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/smontanaro/pyundoc"
+"Bug Tracker" = "https://github.com/smontanaro/pyundoc/issues"
+
+[tool.setuptools.packages.find]
+include = ["pyundoc*"]
+
+[project.scripts]
+    pyundoc = "pyundoc.pyundoc:main"
+
+[build-system]
+requires = [
+    "setuptools>=68.0",
+    "trove-classifiers",
+    "wheel",
+]
+
+build-backend = "setuptools.build_meta"
