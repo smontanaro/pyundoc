@@ -1,3 +1,6 @@
+## I didn't come up with all this stuff. This is the .gitignore file
+## GitHub spits out when you ask for "Python."
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
