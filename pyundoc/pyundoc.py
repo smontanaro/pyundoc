@@ -81,7 +81,8 @@ def main():
                 missing.add(name)
         missing -= OK_MISSING.get(mname, set())
         if missing:
-            para = f"**{mname}**: `{', '.join(sorted(missing))}`"
+            para = (f"**{mname}** ({len(missing)}):"
+                f"`{', '.join(sorted(missing))}`")
             print("*", textwrap.fill(para, subsequent_indent="  "))
     return 0
 
