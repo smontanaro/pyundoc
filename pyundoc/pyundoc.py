@@ -16,7 +16,6 @@ import argparse
 import importlib
 import inspect
 import os
-import random
 import re
 import sys
 import textwrap
@@ -47,8 +46,6 @@ def main():
 
     if args.sorted:
         mnames.sort()
-    else:
-        random.shuffle(mnames)
 
     invfile = os.path.join(args.docbase, "build", "html", "objects.inv")
     if not os.path.exists(invfile):
