@@ -24,16 +24,23 @@ import textwrap
 import requests
 from sphobjinv.cli.load import import_infile
 
-IGNORE_MODULE = ()
+IGNORE_MODULE = set()
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-u", "--docurl", dest="docurl",
-                        default="http://127.0.0.1:8000/")
-    parser.add_argument("-d", "--docbase", dest="docbase", default="Doc")
-    parser.add_argument("-m", "--module", dest="module", default="")
+                        default="http://127.0.0.1:8000/",
+                        help="server from which to fetch module index")
+    parser.add_argument("-d", "--docbase", dest="docbase", default="Doc",
+                        help="documentation base")
+    # TODO: should be "append" to allow multiple instances
+    parser.add_argument("-m", "--module", dest="module", default="",
+                        help="single module to check")
     parser.add_argument("-s", "--sort", dest="sorted", action="store_true",
-                        default=False)
+                        default=False, help="sort output")
+    parser.add_argument("-i", "--ignore-missing", dest="use_missing",
+                        action="store_false", default=True,
+                        help="ignore OK_MISSING dict")
     args = parser.parse_args()
 
     if not args.module:
@@ -57,16 +64,16 @@ def main():
     print()
 
     for mname in mnames:
-        search_missing(mname, invdict)
+        search_missing(mname, invdict, args.use_missing)
     return 0
 
-def search_missing(mname, invdict):
+def search_missing(mname, invdict, use_missing):
     missing = set()
     try:
         mod_obj = importlib.import_module(mname)
     except ImportError:
         return
-    if OK_MISSING.get(mname) is IGNORE_MODULE:
+    if use_missing and OK_MISSING.get(mname) is IGNORE_MODULE:
         # perhaps a module like tkinter which isn't documented at this
         # level
         return
@@ -85,7 +92,8 @@ def search_missing(mname, invdict):
             if inspect.ismodule(getattr(mod_obj, name, False)):
                 continue
             missing.add(name)
-    missing -= OK_MISSING.get(mname, set())
+    if use_missing:
+        missing -= OK_MISSING.get(mname, set())
     if missing:
         para = (f"**{mname}** ({len(missing)}):"
             f"`{', '.join(sorted(missing))}`")
