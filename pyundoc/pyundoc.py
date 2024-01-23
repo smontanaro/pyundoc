@@ -2,6 +2,8 @@
 
 """Compare module contents with doc items.
 
+# Introduction
+
 This script attempts to answer a very simple question. For any module M, which
 of the globally visible attributes don't appear as references of some kind
 (references in the Sphinx sense) in the module's documentation?
@@ -10,6 +12,21 @@ of the globally visible attributes don't appear as references of some kind
 2. Load Sphinx inventory and reorganize slightly.
 3. Compare module globals with extracted refs and note any globals which appear
 to be missing from the doc file.
+
+Note that while it fetches the module index from a server, it really will only
+work if that server is local, so you can read the `objects.inv` file.
+
+# Example usage
+
+In this example, the module index will be grabbed from the default URL, the
+`objects.inv` file will be read from `../cpython/Doc/build/html/objects.inv`,
+and only the `ast` and `tkinter` modules will be checked, ignoring any
+attribute names stored in the `OK_MISSING` global dictionary. The output will
+be sorted by module name.
+
+```
+python pyundoc/pyundoc.py -d ../cpython/Doc -m tkinter -m ast -i -s
+```
 """
 
 import argparse
