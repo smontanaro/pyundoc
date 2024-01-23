@@ -33,9 +33,8 @@ def main():
                         help="server from which to fetch module index")
     parser.add_argument("-d", "--docbase", dest="docbase", default="Doc",
                         help="documentation base")
-    # TODO: should be "append" to allow multiple instances
-    parser.add_argument("-m", "--module", dest="module", default="",
-                        help="single module to check")
+    parser.add_argument("-m", "--module", dest="modules", action="append",
+                        help="one or more modules to check")
     parser.add_argument("-s", "--sort", dest="sorted", action="store_true",
                         default=False, help="sort output")
     parser.add_argument("-i", "--ignore-missing", dest="use_missing",
@@ -43,13 +42,12 @@ def main():
                         help="ignore OK_MISSING dict")
     args = parser.parse_args()
 
-    if not args.module:
+    if not args.modules:
         modindex = requests.get(f"{args.docurl}py-modindex.html", timeout=4).text
         mnames = find_modules(modindex, args.docbase)
     else:
         # not perfect, but good enough for now
-        mname = args.module
-        mnames = [mname]
+        mnames = args.modules
 
     if args.sorted:
         mnames.sort()
