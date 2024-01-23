@@ -13,6 +13,7 @@ to be missing from the doc file.
 """
 
 import argparse
+from dataclasses import dataclass, astuple
 import importlib
 import inspect
 import os
@@ -41,8 +42,7 @@ def main():
     else:
         # not perfect, but good enough for now
         mname = args.module
-        rst = os.path.join(args.docbase, "library", f"{mname}.rst")
-        mnames = [(mname, rst)]
+        mnames = [mname]
 
     if args.sorted:
         mnames.sort()
@@ -56,36 +56,40 @@ def main():
     print("# Possibly Undocumented Module Attributes")
     print()
 
-    for (mname, rst) in mnames:
-        try:
-            mod_obj = importlib.import_module(mname)
-        except ImportError:
-            continue
-        if OK_MISSING.get(mname) is IGNORE_MODULE:
-            # perhaps a module like tkinter which isn't documented at this
-            # level
-            continue
-        all_names = get_symbol_patterns(mname)
-        missing = set()
-        for name in all_names:
-            match = None
-            full_name = f"{mname}.{name}"
-            for record in invdict.get(name, set()):
-                if record.name == full_name:
-                    match = record
-
-            if match is None:
-                # probably too aggressive, as it will skip submodules of
-                # mod_obj, not just global modules like sys or os.
-                if inspect.ismodule(getattr(mod_obj, name, False)):
-                    continue
-                missing.add(name)
-        missing -= OK_MISSING.get(mname, set())
-        if missing:
-            para = (f"**{mname}** ({len(missing)}):"
-                f"`{', '.join(sorted(missing))}`")
-            print("*", textwrap.fill(para, subsequent_indent="  "))
+    for mname in mnames:
+        search_missing(mname, invdict)
     return 0
+
+def search_missing(mname, invdict):
+    missing = set()
+    try:
+        mod_obj = importlib.import_module(mname)
+    except ImportError:
+        return
+    if OK_MISSING.get(mname) is IGNORE_MODULE:
+        # perhaps a module like tkinter which isn't documented at this
+        # level
+        return
+
+    all_names = get_symbol_patterns(mname)
+    for name in all_names:
+        match = None
+        full_name = f"{mname}.{name}"
+        for record in invdict.get(name, set()):
+            if record.name == full_name:
+                match = record
+
+        if match is None:
+            # probably too aggressive, as it will skip submodules of
+            # mod_obj, not just global modules like sys or os.
+            if inspect.ismodule(getattr(mod_obj, name, False)):
+                continue
+            missing.add(name)
+    missing -= OK_MISSING.get(mname, set())
+    if missing:
+        para = (f"**{mname}** ({len(missing)}):"
+            f"`{', '.join(sorted(missing))}`")
+        print("*", textwrap.fill(para, subsequent_indent="  "))
 
 def load_inventory(invfile):
     "Load Sphinx inventory and massage into a more useful format."
@@ -96,7 +100,8 @@ def load_inventory(invfile):
         name = obj.name.split(".")[-1]
         if name not in invdict:
             invdict[name] = set()
-        invdict[name].add(SOIData(obj))
+        invdict[name].add(SOIData(obj.name, obj.domain, obj.role,
+                                  obj.priority, obj.uri, obj.dispname))
     return invdict
 
 def find_modules(modindex, docbase):
@@ -111,7 +116,7 @@ def find_modules(modindex, docbase):
             mname = re.search('>([^<]+)<', post).group(1)
             if mname[0] == "_" or file_base != mname:
                 continue
-            mnames.add((mname, rst))
+            mnames.add(mname)
     return list(mnames)
 
 def get_symbol_patterns(mname, pattern=None):
@@ -130,15 +135,20 @@ def get_symbol_patterns(mname, pattern=None):
     except ImportError:
         return set()
 
+@dataclass
 class SOIData:
     "Hashable mimic of sphobjinv.DataObjStr."
-    def __init__(self, data):
-        self.name = data.name
-        self.domain = data.domain
-        self.role = data.role
-        self.priority = data.priority
-        self.uri = data.uri
-        self.dispname = data.dispname
+    # It seems silly that I need to create this class. There's probably a
+    # better way to do this, maybe add a hash method to DataObjStr?
+    name: str
+    domain: str
+    role: str
+    priority: str
+    uri: str
+    dispname: str
+
+    def __hash__(self):
+        return hash(astuple(self))
 
 OK_MISSING = {
     "builtins": IGNORE_MODULE,
