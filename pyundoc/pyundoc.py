@@ -53,10 +53,13 @@ def main():
     parser.add_argument("-m", "--module", dest="modules", action="append",
                         help="one or more modules to check")
     parser.add_argument("-s", "--sort", dest="sorted", action="store_true",
-                        default=False, help="sort output")
+                        default=False, help="sort output if given")
+    parser.add_argument("-t", "--type-names", dest="type_names",
+                        action="store_true", default=False,
+                        help="include type names if given")
     parser.add_argument("-i", "--ignore-missing", dest="use_missing",
                         action="store_false", default=True,
-                        help="ignore OK_MISSING dict")
+                        help="ignore OK_MISSING dict if given")
     args = parser.parse_args()
 
     if not args.modules:
@@ -79,10 +82,10 @@ def main():
     print()
 
     for mname in mnames:
-        search_missing(mname, invdict, args.use_missing)
+        search_missing(mname, invdict, args.use_missing, args.type_names)
     return 0
 
-def search_missing(mname, invdict, use_missing):
+def search_missing(mname, invdict, use_missing, type_names):
     missing = set()
     try:
         mod_obj = importlib.import_module(mname)
@@ -110,6 +113,14 @@ def search_missing(mname, invdict, use_missing):
     if use_missing:
         missing -= OK_MISSING.get(mname, set())
     if missing:
+        missing = list(missing)
+        if type_names:
+            for i, name in enumerate(missing):
+                obj = getattr(mod_obj, name)
+                obj_type = type(obj)
+                type_name = (obj_type.__name__ if hasattr(obj_type, "__name__")
+                    else str(obj_type))
+                missing[i] = f"{name} ({type_name})"
         para = (f"**{mname}** ({len(missing)}):"
             f"`{', '.join(sorted(missing))}`")
         print("*", textwrap.fill(para, subsequent_indent="  "))
