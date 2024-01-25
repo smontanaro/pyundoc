@@ -82,48 +82,76 @@ def main():
     print()
 
     for mname in mnames:
-        search_missing(mname, invdict, args.use_missing, args.type_names)
+        missing = search_missing(mname, invdict, args.use_missing,
+            args.type_names)
+        if missing:
+            para = (f"**{mname}** ({len(missing)}):"
+                f"`{', '.join(sorted(missing))}`")
+            print("*", textwrap.fill(para, width=74, subsequent_indent="  "))
+
     return 0
+
+def find_doc_match(mname, name, invdict):
+    "See if there's an item in invdict matching mname.name"
+    full_name = f"{mname}.{name}"
+    for record in invdict.get(name, set()):
+        if record.name == full_name:
+            return record
+    return None
 
 def search_missing(mname, invdict, use_missing, type_names):
     missing = set()
     try:
         mod_obj = importlib.import_module(mname)
     except ImportError:
-        return
+        return missing
     if use_missing and OK_MISSING.get(mname) is IGNORE_MODULE:
         # perhaps a module like tkinter which isn't documented at this
         # level
-        return
+        return missing
 
     all_names = get_symbol_patterns(mname)
+    no_attr = set()
     for name in all_names:
-        match = None
-        full_name = f"{mname}.{name}"
-        for record in invdict.get(name, set()):
-            if record.name == full_name:
-                match = record
-
+        match = find_doc_match(mname, name, invdict)
         if match is None:
-            # probably too aggressive, as it will skip submodules of
-            # mod_obj, not just global modules like sys or os.
-            if inspect.ismodule(getattr(mod_obj, name, False)):
+            attr = getattr(mod_obj, name, no_attr)
+            if attr is not no_attr and inspect.ismodule(attr):
                 continue
             missing.add(name)
+
     if use_missing:
         missing -= OK_MISSING.get(mname, set())
     if missing:
         missing = list(missing)
+        ok_missing = set()
         if type_names:
             for i, name in enumerate(missing):
-                obj = getattr(mod_obj, name)
+                try:
+                    obj = getattr(mod_obj, name)
+                except AttributeError:
+                    # Some packages (e.g. xml) populate __all__ with submodule
+                    # names which often won't have already been imported.  When
+                    # we find them, toss them out, presuming they are
+                    # documented elsewhere.
+                    try:
+                        obj = importlib.import_module(f"{mname}.{name}")
+                    except ImportError:
+                        # not sure what this would be, __all__ containing the
+                        # name of a deleted attribute?
+                        print(f"? can't find {name} in {mname}",
+                              file=sys.stderr)
+                    else:
+                        ok_missing.add(name)
+                    continue
                 obj_type = type(obj)
-                type_name = (obj_type.__name__ if hasattr(obj_type, "__name__")
-                    else str(obj_type))
+                if hasattr(obj_type, "__name__"):
+                    type_name = obj_type.__name__
+                else:
+                    type_name = str(obj_type)
                 missing[i] = f"{name} ({type_name})"
-        para = (f"**{mname}** ({len(missing)}):"
-            f"`{', '.join(sorted(missing))}`")
-        print("*", textwrap.fill(para, subsequent_indent="  "))
+        missing = set(missing) - ok_missing
+    return missing
 
 def load_inventory(invfile):
     "Load Sphinx inventory and massage into a more useful format."
